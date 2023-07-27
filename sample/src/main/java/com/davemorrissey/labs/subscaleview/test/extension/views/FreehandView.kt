@@ -4,17 +4,17 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Paint.Cap
 import android.graphics.Path
 import android.graphics.PointF
 import android.util.AttributeSet
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.View.OnTouchListener
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import java.io.Serializable
 
-data class PaintOptions(var color: Int = Color.parseColor("#660000FF"), var strokeWidth: Float = 19f, var alpha: Int = 50) : Serializable
+data class PaintOptions(var color: Int = Color.parseColor("#660000FF"), var alpha: Int = 50) : Serializable
 
 
 class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeSet? = null) : SubsamplingScaleImageView(context, attr), OnTouchListener {
@@ -27,7 +27,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
     private var vPrev = PointF()
     private var vPrevious: PointF? = null
     private var vStart: PointF? = null
-    private var strokeWidth = 0
     private var sPoints: MutableList<PointF?>? = null
 
 
@@ -78,9 +77,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
 
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-/*        if (sPoints != null && !drawing) {
-            return super.onTouchEvent(event)
-        }*/
         var consumed = false
         val touchCount = event.pointerCount
         when (event.actionMasked) {
@@ -99,7 +95,7 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
                 if (touchCount == 1 && vStart != null) {
                     val vDX = Math.abs(event.x - vPrevious!!.x)
                     val vDY = Math.abs(event.y - vPrevious!!.y)
-                    if (vDX >= strokeWidth * 5 || vDY >= strokeWidth * 5) {
+                    if (vDX >= paint.strokeWidth * 2 || vDY >= paint.strokeWidth * 2) {
                         if (sPoints == null) {
                             sPoints = mutableListOf()
                             sPoints!!.add(sStart)
@@ -107,7 +103,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
                         sPoints!!.add(sCurrent)
                         vPrevious!!.x = event.x
                         vPrevious!!.y = event.y
-                        //drawing = true
                     }
                     consumed = true
                     invalidate()
@@ -119,7 +114,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 invalidate()
-                //drawing = false
                 vPrevious = null
                 vStart = null
             }
