@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PointF
+import android.graphics.PorterDuff
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -19,16 +20,21 @@ data class PaintOptions(var color: Int = Color.parseColor("#660000FF"), var alph
 
 class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeSet? = null) : SubsamplingScaleImageView(context, attr), OnTouchListener {
 
+    private var paths = mutableSetOf<Path>()
     private var paint = Paint()
     private var paintOptions = PaintOptions()
+    var isDrawing = false
 
-    private val vPath = Path()
+    private var vPath = Path()
     private val vPoint = PointF()
+
+    // TODO: Why is there vPrev and vPrevious?
     private var vPrev = PointF()
     private var vPrevious: PointF? = null
     private var vStart: PointF? = null
-    private var sPoints: MutableList<PointF?>? = null
 
+    //private var sPoints: MutableList<PointF?>? = null
+    private var sPointsList: MutableList<MutableList<PointF?>?> = mutableListOf()
 
     init {
         setOnTouchListener(this)
@@ -52,26 +58,35 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
 
 
     fun reset() {
-        sPoints = null
+        sPointsList.clear()
         invalidate()
     }
 
 
+    // TODO: Problem is that sPoints stores every point that was touched, so it will just draw the next touch point unless we stop it somehow.
+    // TODO: Also note that we explicitly move to vPrev, which is the previously touched point.
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         // Don't draw anything before image is ready.
         if (!isReady) return
 
-        if (sPoints != null && sPoints!!.size >= 2) {
-            vPath.reset()
-            sourceToViewCoord(sPoints!![0]!!.x, sPoints!![0]!!.y, vPrev)
-            vPath.moveTo(vPrev.x, vPrev.y)
-            for (i in 1 until sPoints!!.size) {
-                sourceToViewCoord(sPoints!![i]!!.x, sPoints!![i]!!.y, vPoint)
-                vPath.quadTo(vPrev.x, vPrev.y, (vPoint.x + vPrev.x) / 2, (vPoint.y + vPrev.y) / 2)
-                vPrev = vPoint
+        // Draw based on a temp list, since we can't guarantee that sPointsList won't change while we're iterating through it.
+        val sPointsTempList = mutableListOf<MutableList<PointF?>?>()
+        sPointsTempList.addAll(sPointsList)
+
+        sPointsTempList.forEach { sPoints ->
+            if (sPoints != null && sPoints.size >= 2) {
+                vPath.reset()
+                // vPrev is initialized on this line. This is the first point that was ever touched.
+                sourceToViewCoord(sPoints[0]!!.x, sPoints[0]!!.y, vPrev)
+                vPath.moveTo(vPrev.x, vPrev.y)
+                for (i in 1 until sPoints.size) {
+                    sourceToViewCoord(sPoints[i]!!.x, sPoints[i]!!.y, vPoint)
+                    vPath.quadTo(vPrev.x, vPrev.y, (vPoint.x + vPrev.x) / 2, (vPoint.y + vPrev.y) / 2)
+                    vPrev = vPoint
+                }
+                canvas.drawPath(vPath, paint)
             }
-            canvas.drawPath(vPath, paint)
         }
     }
 
@@ -80,12 +95,14 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
         var consumed = false
         val touchCount = event.pointerCount
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> if (event.actionIndex == 0) {
-                vStart = PointF(event.x, event.y)
-                vPrevious = PointF(event.x, event.y)
-            } else {
-                vStart = null
-                vPrevious = null
+            MotionEvent.ACTION_DOWN -> {
+                if (event.actionIndex == 0) {
+                    vStart = PointF(event.x, event.y)
+                    vPrevious = PointF(event.x, event.y)
+                } else {
+                    vStart = null
+                    vPrevious = null
+                }
             }
 
             MotionEvent.ACTION_MOVE -> {
@@ -95,15 +112,15 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
                 if (touchCount == 1 && vStart != null) {
                     val vDX = Math.abs(event.x - vPrevious!!.x)
                     val vDY = Math.abs(event.y - vPrevious!!.y)
-                    if (vDX >= paint.strokeWidth * 2 || vDY >= paint.strokeWidth * 2) {
-                        if (sPoints == null) {
-                            sPoints = mutableListOf()
-                            sPoints!!.add(sStart)
+                    if (vDX >= paint.strokeWidth / 2 || vDY >= paint.strokeWidth / 2) {
+                        if (sPointsList.isEmpty()) {
+                            sPointsList.add(mutableListOf(sStart))
                         }
-                        sPoints!!.add(sCurrent)
+                        sPointsList.last()!!.add(sCurrent)
                         vPrevious!!.x = event.x
                         vPrevious!!.y = event.y
                     }
+                    isDrawing = true
                     consumed = true
                     invalidate()
                 } else if (touchCount == 1) {
@@ -113,6 +130,8 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                isDrawing = false
+                sPointsList.add(mutableListOf())
                 invalidate()
                 vPrevious = null
                 vStart = null
