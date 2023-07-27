@@ -43,6 +43,15 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
         setOnTouchListener(this)
         val density = resources.displayMetrics.densityDpi.toFloat()
         //strokeWidth = (density / 60f).toInt()
+
+        paint.apply {
+            color = paintOptions.color
+            style = Paint.Style.STROKE
+            strokeJoin = Paint.Join.ROUND
+            strokeCap = Paint.Cap.ROUND
+            strokeWidth = paintOptions.strokeWidth
+            isAntiAlias = true
+        }
     }
 
 
@@ -62,7 +71,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
         // Don't draw anything before image is ready.
         if (!isReady) return
 
-        paint.isAntiAlias = true
         if (sPoints != null && sPoints!!.size >= 2) {
             vPath.reset()
             sourceToViewCoord(sPoints!![0]!!.x, sPoints!![0]!!.y, vPrev)
@@ -72,13 +80,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
                 vPath.quadTo(vPrev.x, vPrev.y, (vPoint.x + vPrev.x) / 2, (vPoint.y + vPrev.y) / 2)
                 vPrev = vPoint
             }
-            paint.style = Paint.Style.STROKE
-            paint.strokeCap = Cap.ROUND
-            paint.strokeWidth = (strokeWidth * 2).toFloat()
-            paint.color = Color.BLACK
-            canvas.drawPath(vPath, paint)
-            paint.strokeWidth = strokeWidth.toFloat()
-            paint.color = Color.argb(255, 51, 181, 229)
             canvas.drawPath(vPath, paint)
         }
     }
