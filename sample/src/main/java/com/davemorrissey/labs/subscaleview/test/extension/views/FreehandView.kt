@@ -12,9 +12,23 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.View.OnTouchListener
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import java.io.Serializable
+
+data class PaintOptions(var color: Int = Color.parseColor("#660000FF"), var strokeWidth: Float = 19f, var alpha: Int = 50) : Serializable
+
 
 class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeSet? = null) : SubsamplingScaleImageView(context, attr), OnTouchListener {
-    private val paint = Paint()
+
+    private var paths = LinkedHashMap<MyPath, PaintOptions>()
+    private var lastPaths = LinkedHashMap<MyPath, PaintOptions>()
+    private var undonePaths = LinkedHashMap<MyPath, PaintOptions>()
+    private var paint = Paint()
+    private var myPath = MyPath()
+    private var paintOptions = PaintOptions()
+    private var currentX = 0f
+    private var currentY = 0f
+
+    //private val paint = Paint()
     private val vPath = Path()
     private val vPoint = PointF()
     private var vPrev = PointF()
@@ -24,19 +38,51 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
     private var strokeWidth = 0
     private var sPoints: MutableList<PointF?>? = null
 
-    init {
-        initialise()
-    }
 
-    private fun initialise() {
+    init {
         setOnTouchListener(this)
         val density = resources.displayMetrics.densityDpi.toFloat()
-        strokeWidth = (density / 60f).toInt()
+        //strokeWidth = (density / 60f).toInt()
     }
+
 
     override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
         return false
     }
+
+
+    fun reset() {
+        sPoints = null
+        invalidate()
+    }
+
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        // Don't draw anything before image is ready.
+        if (!isReady) return
+
+        paint.isAntiAlias = true
+        if (sPoints != null && sPoints!!.size >= 2) {
+            vPath.reset()
+            sourceToViewCoord(sPoints!![0]!!.x, sPoints!![0]!!.y, vPrev)
+            vPath.moveTo(vPrev.x, vPrev.y)
+            for (i in 1 until sPoints!!.size) {
+                sourceToViewCoord(sPoints!![i]!!.x, sPoints!![i]!!.y, vPoint)
+                vPath.quadTo(vPrev.x, vPrev.y, (vPoint.x + vPrev.x) / 2, (vPoint.y + vPrev.y) / 2)
+                vPrev = vPoint
+            }
+            paint.style = Paint.Style.STROKE
+            paint.strokeCap = Cap.ROUND
+            paint.strokeWidth = (strokeWidth * 2).toFloat()
+            paint.color = Color.BLACK
+            canvas.drawPath(vPath, paint)
+            paint.strokeWidth = strokeWidth.toFloat()
+            paint.color = Color.argb(255, 51, 181, 229)
+            canvas.drawPath(vPath, paint)
+        }
+    }
+
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (sPoints != null && !drawing) {
@@ -87,38 +133,5 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
         }
         // Use parent to handle pinch and two-finger pan.
         return consumed || super.onTouchEvent(event)
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-
-        // Don't draw anything before image is ready.
-        if (!isReady) {
-            return
-        }
-        paint.isAntiAlias = true
-        if (sPoints != null && sPoints!!.size >= 2) {
-            vPath.reset()
-            sourceToViewCoord(sPoints!![0]!!.x, sPoints!![0]!!.y, vPrev)
-            vPath.moveTo(vPrev.x, vPrev.y)
-            for (i in 1 until sPoints!!.size) {
-                sourceToViewCoord(sPoints!![i]!!.x, sPoints!![i]!!.y, vPoint)
-                vPath.quadTo(vPrev.x, vPrev.y, (vPoint.x + vPrev.x) / 2, (vPoint.y + vPrev.y) / 2)
-                vPrev = vPoint
-            }
-            paint.style = Paint.Style.STROKE
-            paint.strokeCap = Cap.ROUND
-            paint.strokeWidth = (strokeWidth * 2).toFloat()
-            paint.color = Color.BLACK
-            canvas.drawPath(vPath, paint)
-            paint.strokeWidth = strokeWidth.toFloat()
-            paint.color = Color.argb(255, 51, 181, 229)
-            canvas.drawPath(vPath, paint)
-        }
-    }
-
-    fun reset() {
-        sPoints = null
-        invalidate()
     }
 }
