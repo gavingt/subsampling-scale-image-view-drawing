@@ -19,37 +19,29 @@ data class PaintOptions(var color: Int = Color.parseColor("#660000FF"), var stro
 
 class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeSet? = null) : SubsamplingScaleImageView(context, attr), OnTouchListener {
 
-    private var paths = LinkedHashMap<MyPath, PaintOptions>()
-    private var lastPaths = LinkedHashMap<MyPath, PaintOptions>()
-    private var undonePaths = LinkedHashMap<MyPath, PaintOptions>()
     private var paint = Paint()
-    private var myPath = MyPath()
     private var paintOptions = PaintOptions()
-    private var currentX = 0f
-    private var currentY = 0f
 
-    //private val paint = Paint()
     private val vPath = Path()
     private val vPoint = PointF()
     private var vPrev = PointF()
     private var vPrevious: PointF? = null
     private var vStart: PointF? = null
-    private var drawing = false
     private var strokeWidth = 0
     private var sPoints: MutableList<PointF?>? = null
 
 
     init {
         setOnTouchListener(this)
-        val density = resources.displayMetrics.densityDpi.toFloat()
-        //strokeWidth = (density / 60f).toInt()
 
         paint.apply {
             color = paintOptions.color
             style = Paint.Style.STROKE
             strokeJoin = Paint.Join.ROUND
             strokeCap = Paint.Cap.ROUND
-            strokeWidth = paintOptions.strokeWidth
+            // Base strokeWidth on density or hard-code it?
+            val density = resources.displayMetrics.densityDpi.toFloat()
+            strokeWidth = density / 20f
             isAntiAlias = true
         }
     }
@@ -86,9 +78,9 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
 
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (sPoints != null && !drawing) {
+/*        if (sPoints != null && !drawing) {
             return super.onTouchEvent(event)
-        }
+        }*/
         var consumed = false
         val touchCount = event.pointerCount
         when (event.actionMasked) {
@@ -115,7 +107,7 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
                         sPoints!!.add(sCurrent)
                         vPrevious!!.x = event.x
                         vPrevious!!.y = event.y
-                        drawing = true
+                        //drawing = true
                     }
                     consumed = true
                     invalidate()
@@ -127,7 +119,7 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 invalidate()
-                drawing = false
+                //drawing = false
                 vPrevious = null
                 vStart = null
             }
