@@ -1,0 +1,53 @@
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+group = 'com.davemorrissey.labs'
+archivesBaseName = 'subsampling-scale-image-view-androidx'
+version = '3.10.0'
+
+android {
+    compileSdkVersion 33
+
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 33
+        consumerProguardFiles 'proguard-rules.txt'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    namespace 'com.davemorrissey.labs.subscaleview'
+}
+
+/*
+configurations {
+    javadocs
+}
+*/
+
+dependencies {
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation 'androidx.core:core-ktx:1.10.1'
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
+//    javadocs 'androidx.annotation:annotation:1.6.0'
+//    javadocs 'androidx.exifinterface:exifinterface:1.3.6'
+    implementation 'androidx.exifinterface:exifinterface:1.3.6'
+}
+
+/*task javadoc(type: Javadoc) {
+    failOnError false
+    source = android.sourceSets.main.java.sourceFiles
+    destinationDir = rootProject.file("docs/javadoc")
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    classpath += configurations.compile
+    classpath += configurations.javadocs
+    options.noTimestamp = true
+    options.links = ['https://developer.android.com/reference/']
+}*/
+
