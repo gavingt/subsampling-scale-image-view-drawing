@@ -15,32 +15,33 @@ import android.view.View.OnTouchListener
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import java.io.Serializable
 
-data class PaintOptions(var color: Int = Color.parseColor("#660000FF"), var alpha: Int = 50) : Serializable
 
 
 class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeSet? = null) : SubsamplingScaleImageView(context, attr), OnTouchListener {
 
-    private var paths = mutableSetOf<Path>()
     private var paint = Paint()
-    private var paintOptions = PaintOptions()
-    var isDrawing = false
 
+    // Note that the "v" prefix indicates the measurement is wrt the ImageView (v is for view).
+    // While the "s" prefix indicates the measurement is wrt the screen (s is for source).
+    // We must convert measurements between "v" to "s" when moving between onDraw() and onTouchEvent().
+
+    // Used during onDraw() to track what is being drawn. initialize it here to avoid allocations during onDraw().
+    private var vPrev = PointF()
     private var vPath = Path()
     private val vPoint = PointF()
 
-    // TODO: Why is there vPrev and vPrevious?
-    private var vPrev = PointF()
+    // Used during onTouchEvent() to track what's being touched.
     private var vPrevious: PointF? = null
     private var vStart: PointF? = null
 
-    //private var sPoints: MutableList<PointF?>? = null
+    // Cache each drawing as a separate MutableList<PointF?>?.
     private var sPointsList: MutableList<MutableList<PointF?>?> = mutableListOf()
 
     init {
         setOnTouchListener(this)
 
         paint.apply {
-            color = paintOptions.color
+            color = Color.parseColor("#660000FF")
             style = Paint.Style.STROKE
             strokeJoin = Paint.Join.ROUND
             strokeCap = Paint.Cap.ROUND
@@ -63,8 +64,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
     }
 
 
-    // TODO: Problem is that sPoints stores every point that was touched, so it will just draw the next touch point unless we stop it somehow.
-    // TODO: Also note that we explicitly move to vPrev, which is the previously touched point.
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         // Don't draw anything before image is ready.
@@ -74,10 +73,11 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
         val sPointsTempList = mutableListOf<MutableList<PointF?>?>()
         sPointsTempList.addAll(sPointsList)
 
+        // Iterate through each item in sPointsTempList and draw it.
         sPointsTempList.forEach { sPoints ->
             if (sPoints != null && sPoints.size >= 2) {
                 vPath.reset()
-                // vPrev is initialized on this line. This is the first point that was ever touched.
+                // vPrev is initialized here based on the value of sPoints[0].
                 sourceToViewCoord(sPoints[0]!!.x, sPoints[0]!!.y, vPrev)
                 vPath.moveTo(vPrev.x, vPrev.y)
                 for (i in 1 until sPoints.size) {
@@ -120,7 +120,6 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
                         vPrevious!!.x = event.x
                         vPrevious!!.y = event.y
                     }
-                    isDrawing = true
                     consumed = true
                     invalidate()
                 } else if (touchCount == 1) {
@@ -130,7 +129,7 @@ class FreehandView @JvmOverloads constructor(context: Context?, attr: AttributeS
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
-                isDrawing = false
+                // Add a new sPoints object to represent the next drawn item.
                 sPointsList.add(mutableListOf())
                 invalidate()
                 vPrevious = null
